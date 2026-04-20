@@ -1,0 +1,11 @@
+# Environment
+*.env
+.env*
+
+# Node
+node_modules/
+dist/
+
+# Go
+bin/
+*.exe
