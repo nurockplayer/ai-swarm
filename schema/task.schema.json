@@ -1,1 +1,90 @@
-{}
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/nurockplayer/ai-swarm/schema/task.schema.json",
+  "title": "ai-swarm Task",
+  "description": "Canonical bridge-to-worker task contract for ai-swarm.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "task_id",
+    "type",
+    "source",
+    "repo",
+    "labels",
+    "prompt",
+    "priority",
+    "created_at",
+    "timeout_seconds"
+  ],
+  "properties": {
+    "task_id": {
+      "type": "string"
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "implementation",
+        "review"
+      ]
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "github"
+      ]
+    },
+    "repo": {
+      "type": "string",
+      "pattern": "^[^/]+/[^/]+$"
+    },
+    "ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "issue_number": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "pr_number": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "commit_sha": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "prompt": {
+      "type": "string"
+    },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "low",
+        "normal",
+        "high"
+      ]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "timeout_seconds": {
+      "type": "integer",
+      "minimum": 60
+    }
+  }
+}
