@@ -1,96 +1,77 @@
 # ai-swarm — Claude Code Guidelines
 
-## 專案說明
-
-`ai-swarm` 是一個**完全獨立的 AI 開發基礎設施**，與任何產品專案（tachigo、tachiya 等）無關。
-
-任何專案都可以接上它：
-
-- 在 GitHub Issues 建任務（打上指定 label）
-- 閒置的 Claude Code worker 自動領取並執行
-- 執行結果推回 GitHub（PR、review comment）
-- 新 PR 自動觸發 review 任務，形成閉環
-
 ## 語言設定
 
-永遠使用台灣正體中文回覆。
+永遠使用台灣正體中文回覆，不得使用日文、韓文或簡體中文。
 
-## 實作分工
+## AI 分工
 
-**執行模式**：Codex 主力實作，Claude Code 擔任規劃與監工。
+本專案採「Codex 主力實作，Claude Code 規劃監工」模式。
 
 | 角色 | 職責 |
 |---|---|
-| **Claude Code** | 拆任務、寫 sub-spec、審查 Codex 產出、整合決策 |
-| **Codex** | 具體實作（寫程式、跑測試、commit、push） |
+| Claude Code | 拆任務、寫 sub-spec、審查 Codex 產出、整合決策、git/gh 操作 |
+| Codex | 具體實作（寫程式、跑測試、commit、push） |
 
-Claude Code 不直接寫程式碼，除非 Codex 明確無法處理。
+關鍵規則：
 
-## 目前進度
+- Claude Code 不直接寫程式碼，除非 Codex 明確無法處理或 Codex 額度耗盡
+- Codex 額度緊張時 Claude Code 應等待，不自己代打（除非使用者明確同意）
+- 重複性掃描、大量檔案摘要 → 優先交給 Codex/Gemini，節省 Claude token
 
-| Task | 狀態 | 說明 |
-|---|---|---|
-| Task 1 — Repo scaffold | ✅ 完成 | 目錄結構、CI、GitHub repo 建立 |
-| Task 2 — Task schema | ✅ 完成 | `schema/task.schema.json` + Python types `worker/src/ai_swarm_worker/task.py` |
-| Task 3 — Cloudflare Worker bridge | ✅ 完成 | bridge/ TypeScript Worker 實作完成 |
-| Task 4 — Worker daemon skeleton | ✅ 完成 | Python worker daemon with MQTT |
-| Task 5 — Worker 任務執行 | ✅ 完成 | Claude Code CLI 呼叫、git worktree 隔離 |
-| Task 6 — Label 路由邏輯 | ✅ 完成 | 依 label 決定 PR 推送策略 |
-| Task 7 — E2E smoke test | ⏳ 待實作 | 一張 issue 走完整流程 |
-| Task 8 — Deploy playbook | ⏳ 待實作 | HiveMQ / Tailscale / Cloudflare 設定文件 |
+## 操作權限邊界
 
-## 技術選擇
+- Read-only 可直接執行：gh 查詢、git 讀取、檔案 Read/Grep/Glob
+- 變動操作必須事先詢問：Edit/Write、commit、push、branch 操作、gh pr create/merge/review、issue 建立編輯
 
-| 元件 | 技術 | 原因 |
-|---|---|---|
-| Worker daemon | Python (uv) | Anthropic SDK Python-first；uv 分發簡單；paho-mqtt 成熟；迭代快 |
-| Webhook bridge | Cloudflare Worker (TypeScript) | Serverless、免費、低維護 |
-| MQTT broker | HiveMQ Cloud 免費方案 | 100 連線、10GB/月，MVP 夠用 |
-| 網路 | Tailscale | Worker 在私網，不開 public port |
-| Task 來源 | GitHub Issues + labels | 已在用，config-driven，可抽換 |
-| Claude 呼叫方式 | `claude --prompt-file` CLI | MVP 最簡單，無額外 SDK 依賴 |
-| MQTT 分派 | MQTT 5.0 Shared Subscriptions | Broker 自動負載平衡，worker 離線自動轉派 |
+## Scope 邊界
 
-## Label 驅動的 PR 推送策略
+- PR 只包含 issue 明確列出的任務；不順手重構、不擴張到其他 label/repo
+- 實作途中發現額外想做的事 → 另開 issue，不混進現 PR
+- docs / research draft 不自動視為 implementation source of truth
 
-| Label 組合 | Worker 完成後行為 |
-|---|---|
-| `ai-task` | 開 draft PR，等人工 review |
-| `ai-task` + `auto-merge` | 開 PR 並打 auto-merge label，CI 綠燈即 merge |
-| `ai-task` + `human-review` | 推 branch，通知人類，不自動開 PR |
-| `ai-review` | PR review 任務（由 PR webhook 觸發） |
+## AI 協作守則
 
-## MQTT Topic 設計
+- 不得未經驗證就宣稱「已完成」；必須回報實際跑過的測試、未驗證部分、已知風險
+- Agent 提出的額外功能、future work、重構建議 → 拆成獨立 issue/PR
 
-| Topic | 用途 |
-|---|---|
-| `tasks/impl/{project}` | 實作任務（`$share/impl-workers/tasks/impl/+` shared） |
-| `tasks/review/{project}` | 審查任務（`$share/review-workers/tasks/review/+` shared） |
-| `workers/{worker_id}/heartbeat` | Worker 心跳（每 30s） |
-| `workers/{worker_id}/status` | 閒置/忙碌/離線 |
-| `tasks/{task_id}/progress` | 任務進度回報 |
-| `tasks/{task_id}/result` | 任務完成結果 |
+## 專案硬限制
 
-## MVP 成功條件
+- 完全 project-agnostic：repo、project、label 從 config 讀取，嚴禁 hardcode
+- No real credentials in repo：secret 只透過環境變數，不 commit
+- MVP 單 worker 單任務（git worktree 隔離）
+- MVP 只做 manual toggle idle 模式（worker start / worker stop）
 
-在任意 repo 建一張 issue，打上 `ai-task` + `auto-merge` label，5 分鐘內：
+## Branch 命名
 
-1. Worker 自動領取
-2. Codex 完成實作並 commit
-3. PR 自動開啟並打上 `auto-merge` label
-4. CI 綠燈後 auto-merge 生效
+<type>/<short-description>，例：feat/mqtt-client、fix/mqtt-reconnect、docs/readme-split
 
-## 重要限制
+## Commit 訊息格式
 
-- **完全 project-agnostic**：repo、project、label 全部從 config 讀取，不 hardcode
-- **MVP 只做 manual toggle idle 模式**（`worker start` / `worker stop`）
-- **MVP 單 worker 單任務**（git worktree 隔離）
-- **No real credentials**：secret 用環境變數，不進 repo
+```text
+<type>: <short description>
 
-## 架構圖
+refs #<issue>
 
-見 [docs/architecture.md](docs/architecture.md)
+Co-Authored-By: Claude Sonnet 4.6 <claude[bot]@anthropic.com>
+```
 
-## Task 格式
+Type：feat / fix / docs / chore / refactor / test
 
-見 [docs/task-format.md](docs/task-format.md)，schema 定義在 [schema/task.schema.json](schema/task.schema.json)
+- 實作過程中的 commit 用 refs #號碼
+- PR 最後一個 commit 或 PR 描述用 closes #號碼
+
+## 套件管理與工具
+
+- Python：一律 uv（不用 pip/poetry）
+- Node：一律 pnpm（不用 npm/yarn）
+- Type check：Python 用 basedpyright（不用 mypy 或 pyright）；TypeScript 用 tsc
+- Lint/Format：Python 用 ruff；TypeScript 用 bridge/ 既有設定
+
+## 專案結構
+
+見 README.md#專案結構。
+
+## 架構
+
+見 docs/architecture.md、docs/task-format.md。
