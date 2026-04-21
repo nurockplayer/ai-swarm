@@ -11,10 +11,13 @@ from ai_swarm_worker.config import WorkerConfig
 
 logger = logging.getLogger(__name__)
 
+_TASK_TOPIC = "$share/impl-workers/tasks/impl/+"
+
 
 class MQTTClient:
     def __init__(self, config: WorkerConfig) -> None:
         self.config = config
+        self._on_message_callback: Callable[[str], None] | None = None
         self.client = mqtt.Client(
             callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
             client_id=config.worker_id,
@@ -27,6 +30,29 @@ class MQTTClient:
             qos=1,
             retain=True,
         )
+        self.client.on_connect = self._on_connect
+
+    def _on_connect(
+        self,
+        client: mqtt.Client,
+        userdata: object,
+        flags: mqtt.ConnectFlags,
+        reason_code: mqtt.ReasonCode,
+        properties: mqtt.Properties | None,
+    ) -> None:
+        del userdata, flags, properties
+        if reason_code == 0:
+            logger.info(
+                "Connected to MQTT broker",
+                extra={"worker_id": self.config.worker_id},
+            )
+            if self._on_message_callback is not None:
+                client.subscribe(_TASK_TOPIC, qos=1)
+        else:
+            logger.error(
+                "MQTT connection refused",
+                extra={"reason_code": str(reason_code)},
+            )
 
     def connect(self) -> None:
         parsed_url = urlparse(self.config.mqtt_broker_url)
@@ -62,7 +88,9 @@ class MQTTClient:
             on_message(message.payload.decode("utf-8"))
 
         self.client.on_message = handle_message
-        self.client.subscribe("$share/impl-workers/tasks/impl/+", qos=1)
+        self._on_message_callback = on_message
+        if self.client.is_connected():
+            self.client.subscribe(_TASK_TOPIC, qos=1)
 
     def publish(self, topic: str, payload: str, retain: bool = False) -> None:
         self.client.publish(topic, payload=payload, qos=1, retain=retain)
