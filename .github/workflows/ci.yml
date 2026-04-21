@@ -19,9 +19,9 @@ jobs:
       - name: Ruff check
         working-directory: worker
         run: uv run ruff check src tests
-      - name: Mypy
+      - name: Pyright
         working-directory: worker
-        run: uv run mypy src
+        run: uv run pyright
       - name: Pytest
         working-directory: worker
         run: uv run pytest
