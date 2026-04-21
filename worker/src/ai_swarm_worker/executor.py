@@ -98,6 +98,9 @@ class TaskExecutor:
                 branch=branch,
                 elapsed_seconds=elapsed,
             )
+            from ai_swarm_worker.github import push_and_route
+
+            push_and_route(task, result, worktree_path)
             logger.info(
                 "Task finished",
                 extra={"task_id": task.task_id, "status": status},
