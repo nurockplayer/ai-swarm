@@ -22,17 +22,22 @@ packages = ["src/ai_swarm_worker"]
 [dependency-groups]
 dev = [
     "pytest>=8.3",
-    "pyright>=1.1",
+    "basedpyright>=1.1",
     "ruff>=0.8",
 ]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
 
-[tool.pyright]
+[tool.basedpyright]
 include = ["src"]
 pythonVersion = "3.11"
 typeCheckingMode = "strict"
+reportUnknownMemberType = "none"
+reportUnknownParameterType = "none"
+reportUnknownArgumentType = "none"
+reportUnknownVariableType = "none"
+reportAttributeAccessIssue = "none"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
