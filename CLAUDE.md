@@ -31,7 +31,7 @@ Claude Code 不直接寫程式碼，除非 Codex 明確無法處理。
 | Task | 狀態 | 說明 |
 |---|---|---|
 | Task 1 — Repo scaffold | ✅ 完成 | 目錄結構、CI、GitHub repo 建立 |
-| Task 2 — Task schema | ✅ 完成 | `schema/task.schema.json` + Go types `worker/task.go` |
+| Task 2 — Task schema | ✅ 完成 | `schema/task.schema.json` + Python types `worker/src/ai_swarm_worker/task.py` |
 | Task 3 — Cloudflare Worker bridge | ⏳ 待實作 | GitHub webhook → MQTT publish |
 | Task 4 — Worker daemon skeleton | ⏳ 待實作 | MQTT 連線、shared subscription、heartbeat |
 | Task 5 — Worker 任務執行 | ⏳ 待實作 | Claude Code CLI 呼叫、git worktree 隔離 |
@@ -43,7 +43,7 @@ Claude Code 不直接寫程式碼，除非 Codex 明確無法處理。
 
 | 元件 | 技術 | 原因 |
 |---|---|---|
-| Worker daemon | Go | 單 binary、paho.mqtt.golang 成熟 |
+| Worker daemon | Python | Anthropic SDK Python-first；uv 分發簡單；迭代快 |
 | Webhook bridge | Cloudflare Worker (TypeScript) | Serverless、免費、低維護 |
 | MQTT broker | HiveMQ Cloud 免費方案 | 100 連線、10GB/月，MVP 夠用 |
 | 網路 | Tailscale | Worker 在私網，不開 public port |
