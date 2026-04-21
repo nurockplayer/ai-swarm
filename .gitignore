@@ -9,3 +9,12 @@ dist/
 # Go
 bin/
 *.exe
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+
+# Worker compiled binary
+worker/worker

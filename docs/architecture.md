@@ -44,7 +44,7 @@
 
 ### Worker Daemon（`worker/`）
 
-- Python daemon（uv 管理，`worker start` CLI）
+- Python daemon（uv tool install，`worker start` CLI），長駐 daemon
 - 訂閱 `$share/impl-workers/tasks/impl/+`（Shared Subscription）
 - Broker 自動負載平衡，只有一個 worker 收到每則訊息
 - Worker 離線時訊息自動轉給下一個可用的 worker

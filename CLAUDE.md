@@ -43,7 +43,7 @@ Claude Code 不直接寫程式碼，除非 Codex 明確無法處理。
 
 | 元件 | 技術 | 原因 |
 |---|---|---|
-| Worker daemon | Python (uv) | Anthropic SDK Python-first；paho-mqtt 成熟；迭代快 |
+| Worker daemon | Python (uv) | Anthropic SDK Python-first；uv 分發簡單；paho-mqtt 成熟；迭代快 |
 | Webhook bridge | Cloudflare Worker (TypeScript) | Serverless、免費、低維護 |
 | MQTT broker | HiveMQ Cloud 免費方案 | 100 連線、10GB/月，MVP 夠用 |
 | 網路 | Tailscale | Worker 在私網，不開 public port |
