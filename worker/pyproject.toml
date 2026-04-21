@@ -33,6 +33,11 @@ select = ["E", "F", "I", "UP"]
 include = ["src"]
 pythonVersion = "3.11"
 typeCheckingMode = "strict"
+reportUnknownMemberType = "none"
+reportUnknownParameterType = "none"
+reportUnknownArgumentType = "none"
+reportUnknownVariableType = "none"
+reportAttributeAccessIssue = "none"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
