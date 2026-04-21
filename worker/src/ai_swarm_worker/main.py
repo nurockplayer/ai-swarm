@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 import click
 
 from ai_swarm_worker.config import WorkerConfig
+from ai_swarm_worker.executor import TaskExecutor
 from ai_swarm_worker.heartbeat import HeartbeatPublisher
 from ai_swarm_worker.mqtt import MQTTClient
 
@@ -44,6 +45,7 @@ def start() -> None:
     stop_event = threading.Event()
     mqtt_client = MQTTClient(config)
     heartbeat = HeartbeatPublisher(mqtt_client, config)
+    executor = TaskExecutor(mqtt_client, config)
 
     def request_stop(signum: int, frame: object | None) -> None:
         del frame
@@ -56,9 +58,7 @@ def start() -> None:
     try:
         mqtt_client.connect()
         heartbeat.start()
-        mqtt_client.subscribe_tasks(
-            lambda payload: logger.info("Received task", extra={"payload": payload})
-        )
+        mqtt_client.subscribe_tasks(executor.handle_message)
         stop_event.wait()
     finally:
         heartbeat.stop()
