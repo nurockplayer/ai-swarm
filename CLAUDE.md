@@ -32,10 +32,10 @@ Claude Code 不直接寫程式碼，除非 Codex 明確無法處理。
 |---|---|---|
 | Task 1 — Repo scaffold | ✅ 完成 | 目錄結構、CI、GitHub repo 建立 |
 | Task 2 — Task schema | ✅ 完成 | `schema/task.schema.json` + Python types `worker/src/ai_swarm_worker/task.py` |
-| Task 3 — Cloudflare Worker bridge | ⏳ 待實作 | GitHub webhook → MQTT publish |
-| Task 4 — Worker daemon skeleton | ⏳ 待實作 | MQTT 連線、shared subscription、heartbeat |
-| Task 5 — Worker 任務執行 | ⏳ 待實作 | Claude Code CLI 呼叫、git worktree 隔離 |
-| Task 6 — Label 路由邏輯 | ⏳ 待實作 | 依 label 決定 PR 推送策略 |
+| Task 3 — Cloudflare Worker bridge | ✅ 完成 | bridge/ TypeScript Worker 實作完成 |
+| Task 4 — Worker daemon skeleton | ✅ 完成 | Python worker daemon with MQTT |
+| Task 5 — Worker 任務執行 | ✅ 完成 | Claude Code CLI 呼叫、git worktree 隔離 |
+| Task 6 — Label 路由邏輯 | ✅ 完成 | 依 label 決定 PR 推送策略 |
 | Task 7 — E2E smoke test | ⏳ 待實作 | 一張 issue 走完整流程 |
 | Task 8 — Deploy playbook | ⏳ 待實作 | HiveMQ / Tailscale / Cloudflare 設定文件 |
 
