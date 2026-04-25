@@ -1,127 +1,98 @@
 # GitHub Webhook Setup
 
-This guide connects a GitHub repository to the AI Swarm Cloudflare Worker bridge.
+This guide connects a target GitHub repository to the deployed Cloudflare Worker bridge. Complete this file after [cloudflare-deploy.md](./cloudflare-deploy.md), then continue with [worker-deployment.md](./worker-deployment.md).
 
-The Payload URL comes from the deployed Cloudflare Worker. See [cloudflare-deploy.md](cloudflare-deploy.md) for deployment and URL discovery.
+## Prerequisites
 
-## Required Events
+- Complete [cloudflare-deploy.md](./cloudflare-deploy.md)
+- Admin access to the target GitHub repository
+- GitHub webhook docs:
+  - Create a webhook: https://docs.github.com/en/webhooks/creating-webhooks
+  - View deliveries: https://docs.github.com/webhooks/testing-and-troubleshooting-webhooks/viewing-webhook-deliveries
+  - Redeliver deliveries: https://docs.github.com/enterprise-cloud@latest/webhooks/testing-and-troubleshooting-webhooks/redelivering-webhooks
+- The following values ready:
+  - `https://<YOUR_WORKER_SUBDOMAIN>.workers.dev`
+  - `<YOUR_GITHUB_WEBHOOK_SECRET>`
 
-Select these webhook events:
+## Step-by-step
 
-- **Issues**
-- **Pull requests**
+1. Open the target repository on GitHub.
 
-Issues create implementation tasks. Pull request events create review or follow-up tasks when the routing labels match the AI Swarm configuration.
+2. Go to `Settings` -> `Webhooks` -> `Add webhook`.
 
-## Add the Webhook
+3. Fill `Payload URL` with the deployed Cloudflare Worker URL.
 
-1. Open the target GitHub repository.
-2. Go to **Settings → Webhooks**.
-3. Select **Add webhook**.
-4. Fill in the fields below.
-5. Select **Add webhook**.
+   ```text
+   https://<YOUR_WORKER_SUBDOMAIN>.workers.dev
+   ```
 
-## Field Reference
+4. Set `Content type` to:
 
-### Payload URL
+   ```text
+   application/json
+   ```
 
-Set this to the Cloudflare Worker URL, for example:
+5. Paste the same webhook secret used in Cloudflare.
 
-```text
-https://ai-swarm-bridge.YOUR-SUBDOMAIN.workers.dev
-```
+   ```text
+   <YOUR_GITHUB_WEBHOOK_SECRET>
+   ```
 
-Get this URL with:
+6. Under `Which events would you like to trigger this webhook?`, choose `Let me select individual events`.
 
-```bash
-cd bridge
-wrangler deployments list
-```
+7. Enable these events only:
 
-### Content Type
+   - `Issues`
+   - `Pull requests`
 
-Select:
+8. Keep `Active` checked, then select `Add webhook`.
 
-```text
-application/json
-```
+9. After the webhook is created, open it and inspect `Recent Deliveries`.
 
-The bridge expects JSON webhook payloads.
+10. Confirm the initial `ping` delivery exists and returned a `2xx` response.
 
-### Secret
+11. Trigger a real delivery by adding the `ai-task` label to a test issue in the same repository.
 
-Use the same value stored in the Cloudflare Worker secret:
+12. If the first delivery fails, use `Recent Deliveries` -> `Redeliver` after fixing the bridge secret or MQTT settings.
 
-```bash
-cd bridge
-wrangler secret put GITHUB_WEBHOOK_SECRET
-```
+## Verification
 
-Generate a strong secret with:
+1. The webhook entry is visible under `Settings` -> `Webhooks`.
 
-```bash
-openssl rand -hex 32
-```
+2. `Recent Deliveries` contains a `ping` event with a `2xx` response.
 
-GitHub signs webhook requests with this secret. The bridge rejects requests when the signature does not match.
+3. A labeled issue generates an `issues` webhook delivery with a `2xx` response.
 
-### Events
-
-Choose **Let me select individual events** and enable:
-
-- **Issues**
-- **Pull requests**
-
-### Active
-
-Keep **Active** checked. Inactive webhooks are saved but do not send deliveries.
-
-## Test the Webhook
-
-After creating the webhook:
-
-1. Open **Settings → Webhooks**.
-2. Select the AI Swarm webhook.
-3. Open **Recent Deliveries**.
-4. Confirm GitHub sent a `ping` delivery.
-5. Select the delivery and inspect the response status.
-
-Expected result:
-
-- HTTP status is `2xx`.
-- Response does not show a signature error.
-- Cloudflare Worker logs show the request was received.
-
-Create or update a test issue with the `ai-task` label to trigger an issue delivery.
-
-## Redeliver for Testing
-
-To retry a webhook delivery:
-
-1. Open **Settings → Webhooks**.
-2. Select the AI Swarm webhook.
-3. Open **Recent Deliveries**.
-4. Select a delivery.
-5. Select **Redeliver**.
-
-Use redelivery after changing Cloudflare secrets, MQTT credentials, or bridge code. It lets you test the same payload without creating another GitHub issue.
+4. Continue to [worker-deployment.md](./worker-deployment.md) so a worker is available to consume the published MQTT tasks.
 
 ## Troubleshooting
 
-### 401 Response
+### 401 Signature Mismatch
 
-Cause: The GitHub webhook secret does not match `GITHUB_WEBHOOK_SECRET` in Cloudflare.
+Cause: GitHub and Cloudflare are not using the same `GITHUB_WEBHOOK_SECRET` value.
 
-Fix: Update one side so both values are identical, then redeliver the failed delivery.
+Fix:
 
-### No Deliveries
+- Re-run `pnpm exec wrangler secret put GITHUB_WEBHOOK_SECRET` in `bridge/`.
+- Update the GitHub webhook secret to the exact same value.
+- Use `Redeliver` on the failed delivery.
 
-Cause: The webhook is inactive or the selected event type does not match the GitHub action.
+### No Recent Deliveries
 
-Fix: Confirm **Active** is checked and **Issues** plus **Pull requests** are selected.
+Cause: The webhook is inactive, the repository event did not match, or the webhook was added at the wrong scope.
 
-### MQTT Task Not Published
+Fix:
 
-Cause: The webhook reached Cloudflare, but bridge MQTT configuration failed.
+- Confirm `Active` is enabled.
+- Confirm the webhook was created on the repository that receives the issue or PR activity.
+- Confirm `Issues` and `Pull requests` are both selected.
 
-Fix: Check Cloudflare Worker logs and verify `MQTT_BROKER_URL`, `MQTT_USERNAME`, `MQTT_PASSWORD`, and HiveMQ ACLs.
+### Delivery Is 2xx but No Task Reaches MQTT
+
+Cause: The Worker accepted the webhook but could not publish to HiveMQ.
+
+Fix:
+
+- Re-check `MQTT_BROKER_URL`, `MQTT_USERNAME`, and `MQTT_PASSWORD` in Cloudflare.
+- Re-check the HiveMQ ACLs for `tasks/#` and `workers/#`.
+- Re-deploy the Worker, then redeliver the same webhook.
