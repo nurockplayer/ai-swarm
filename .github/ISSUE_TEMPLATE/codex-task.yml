@@ -1,0 +1,126 @@
+name: Codex Task
+description: Claude Code acts as PM and writes the implementation issue for Codex.
+title: "Task: "
+labels:
+  - ai-task
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template when Claude Code prepares a task for Codex.
+        Use it for Small / Medium, Test-Driven / Debug Loop, or Architecture / High Risk tasks.
+        Keep the issue self-contained. Codex should not need hidden context from chat history.
+
+  - type: dropdown
+    id: task_level
+    attributes:
+      label: Task Level
+      description: 選擇這張 issue 的任務等級。
+      options:
+        - Small / Medium
+        - Test-Driven / Debug Loop
+        - Architecture / High Risk
+    validations:
+      required: true
+
+  - type: textarea
+    id: background
+    attributes:
+      label: 背景
+      description: 為什麼要做這件事？目前狀態是什麼？
+      placeholder: |
+        例：
+        infra/ 目錄已有初稿，但尚未通過 acceptance criteria 驗收。
+    validations:
+      required: true
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: 目標
+      description: 這張 issue 要達成的單一主要目標。
+      placeholder: |
+        例：
+        補完 infra/ 文件，讓新環境能照文件完成部署。
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: 範圍
+      description: 明確列出 Codex 可以動哪些檔案或模組。
+      placeholder: |
+        例：
+        只改 infra/ 與 .github/ templates，不動 worker/ 與 bridge/ 程式碼。
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria
+      description: 逐條列出可驗收條件。
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: constraints
+    attributes:
+      label: 限制
+      description: 明確列出不能做的事、格式要求、相依條件。
+      placeholder: |
+        - 不可修改 ...
+        - 不可使用真實 credentials
+        - commit message 必須為 ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: deliverables
+    attributes:
+      label: 交付物
+      description: 完成後預期 Codex 要交付哪些具體產出。
+      placeholder: |
+        - 更新後的文件
+        - 新增的 template
+        - PR title / body 格式
+    validations:
+      required: true
+
+  - type: input
+    id: branch_name
+    attributes:
+      label: Branch 名稱
+      description: 指定 Codex 應從 main 開出的 branch 名稱。
+      placeholder: "feat/task-xx-short-name"
+    validations:
+      required: true
+
+  - type: textarea
+    id: verification
+    attributes:
+      label: 驗證方式
+      description: 完成前需要做哪些檢查。對 Test-Driven / Debug Loop 任務尤其重要。
+      placeholder: |
+        - 跑哪些指令
+        - 檢查哪些 sections / outputs
+        - 要回報哪些結果
+    validations:
+      required: false
+
+  - type: textarea
+    id: references
+    attributes:
+      label: 參考資料
+      description: 相關文件、issue、PR、URL。
+      placeholder: |
+        - docs/...
+        - issue #...
+        - https://...
+    validations:
+      required: false

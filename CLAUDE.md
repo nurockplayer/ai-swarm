@@ -6,16 +6,20 @@
 
 ## AI 分工
 
-本專案採「Codex 主力實作，Claude Code 規劃監工」模式。
+本專案採分層協作模式，依任務規模決定誰動手：
 
-| 角色 | 職責 |
-|---|---|
-| Claude Code | 拆任務、寫 sub-spec、審查 Codex 產出、整合決策、git/gh 操作 |
-| Codex | 具體實作（寫程式、跑測試、commit、push） |
+| 任務等級 | Claude Code | Codex |
+|---|---|---|
+| Trivial（< 10 行、機械式） | 直接 patch | — |
+| Small / Medium | 寫 issue | 實作 + PR |
+| Test-Driven / Debug Loop | 定義任務 | debug / patch / rerun |
+| Architecture / High Risk | 設計拆解 | 逐 issue 實作 |
+
+詳見 `docs/codex-workflow.md`。
 
 關鍵規則：
 
-- Claude Code 不直接寫程式碼，除非 Codex 明確無法處理或 Codex 額度耗盡
+- Trivial 以外，Claude Code 不直接寫程式碼
 - Codex 額度緊張時 Claude Code 應等待，不自己代打（除非使用者明確同意）
 - 重複性掃描、大量檔案摘要 → 優先交給 Codex/Gemini，節省 Claude token
 
