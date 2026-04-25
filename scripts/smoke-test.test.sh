@@ -14,7 +14,7 @@ set -euo pipefail
 printf '%s\n' "$*" >>"$GH_CALLS"
 
 case "$1 $2" in
-  "auth status")
+  "auth status"|"auth token")
     exit 0
     ;;
   "issue create")

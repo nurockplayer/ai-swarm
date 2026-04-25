@@ -105,7 +105,7 @@ run_preflight() {
 
 require_e2e_tools() {
   command -v gh >/dev/null
-  gh auth status >/dev/null
+  gh auth token >/dev/null
 }
 
 create_e2e_issue() {
