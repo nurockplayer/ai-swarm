@@ -1,86 +1,129 @@
 # Tailscale Setup
 
-Tailscale is optional for the MVP. HiveMQ Cloud does not require it because workers connect outbound to the managed MQTT broker over TLS.
+Tailscale is optional for the current MVP because workers connect outbound to HiveMQ Cloud over TLS. Use this guide if you want private operator access to worker machines now, or if you plan to move MQTT to a self-hosted broker later.
 
-Use Tailscale only if you want private machine-to-machine access now, or if you later self-host the MQTT broker.
+## Prerequisites
 
-## Install Tailscale
+- A Tailscale account: https://login.tailscale.com/
+- Tailscale install docs:
+  - Linux: https://tailscale.com/docs/install/linux
+  - macOS: https://tailscale.com/download/mac
+- Auth key docs: https://tailscale.com/docs/features/access-control/auth-keys
+- A machine that will run the AI Swarm worker
+- Optional placeholder if you use unattended setup:
+  - `<YOUR_TAILSCALE_AUTH_KEY>`
 
-Install Tailscale on each worker machine:
+## Step-by-step
 
-```bash
-curl -fsSL https://tailscale.com/install.sh | sh
-```
+1. Create or sign in to a tailnet.
 
-On macOS, install from https://tailscale.com/download/mac or use Homebrew:
+   Admin console:
 
-```bash
-brew install --cask tailscale
-```
+   ```text
+   https://login.tailscale.com/admin
+   ```
 
-## Create a Tailnet
+2. Install Tailscale on the worker machine.
 
-1. Sign in at https://login.tailscale.com/.
-2. Create a new tailnet or use an existing organization tailnet.
-3. Confirm the admin console is accessible.
+   Ubuntu or Debian:
 
-## Invite Worker Machines
+   ```bash
+   curl -fsSL https://tailscale.com/install.sh | sh
+   ```
 
-On each worker machine, authenticate with the tailnet:
+   macOS with Homebrew:
 
-```bash
-sudo tailscale up
-```
+   ```bash
+   brew install --cask tailscale
+   ```
 
-For unattended servers, use an auth key from the Tailscale admin console:
+3. Start the Tailscale client on the worker machine.
 
-```bash
-sudo tailscale up --auth-key tskey-auth-REPLACE_ME
-```
+   Linux:
 
-Confirm each worker appears in the Tailscale admin console.
+   ```bash
+   sudo tailscale up
+   ```
 
-## ACL Tag
+   For unattended servers, use an auth key instead:
 
-Use the tag `tag:ai-worker` for worker machines.
+   ```bash
+   sudo tailscale up --auth-key='<YOUR_TAILSCALE_AUTH_KEY>'
+   ```
 
-In the Tailscale admin console:
+4. In the Tailscale admin console, confirm the worker machine appears in the machine list.
 
-1. Open **Access controls**.
-2. Add `tag:ai-worker` to `tagOwners`.
-3. Apply the tag to worker machines.
+5. Create a worker tag policy if you want to separate AI Swarm nodes from personal devices.
 
-Example ACL fragment:
+   Open `Access controls`, then add a policy fragment like this:
 
-```json
-{
-  "tagOwners": {
-    "tag:ai-worker": ["autogroup:admin"]
-  },
-  "acls": [
-    {
-      "action": "accept",
-      "src": ["tag:ai-worker"],
-      "dst": ["*:*"]
-    }
-  ]
-}
-```
+   ```json
+   {
+     "tagOwners": {
+       "tag:ai-worker": ["autogroup:admin"]
+     },
+     "acls": [
+       {
+         "action": "accept",
+         "src": ["tag:ai-worker"],
+         "dst": ["*:*"]
+       }
+     ]
+   }
+   ```
 
-Restrict `dst` further when you know the exact private services the workers need.
+6. Apply the `tag:ai-worker` tag to AI Swarm worker machines if your tailnet policy requires it.
 
-## Future Self-hosted MQTT
+7. If you later self-host MQTT inside Tailscale, update the broker value used by AI Swarm to the internal hostname instead of HiveMQ Cloud.
 
-If AI Swarm later moves from HiveMQ Cloud to a self-hosted MQTT broker, place the broker inside the tailnet.
+   Example future format:
 
-Recommended shape:
+   ```text
+   mqtts://<YOUR_TAILNET_BROKER_HOST>:8883
+   ```
 
-- Broker runs on a tailnet machine named `broker-machine`.
-- Workers connect outbound through Tailscale.
-- Broker URL becomes:
+## Verification
 
-```text
-mqtts://broker-machine:8883
-```
+1. The worker machine shows as connected in the Tailscale admin console.
 
-Keep TLS enabled even inside the tailnet so credentials and messages are encrypted end to end.
+2. `tailscale status` lists the machine and shows an assigned tailnet IP.
+
+   ```bash
+   tailscale status
+   ```
+
+3. If you use tagging, the machine shows the `tag:ai-worker` tag in the admin console.
+
+4. If you do not need private operator access, you can skip this file and continue with [worker-deployment.md](./worker-deployment.md).
+
+## Troubleshooting
+
+### `tailscale up` Requires Browser Login on a Headless Server
+
+Cause: Interactive login was used on a machine without a browser session.
+
+Fix:
+
+- Generate an auth key in the Tailscale admin console.
+- Re-run `sudo tailscale up --auth-key='<YOUR_TAILSCALE_AUTH_KEY>'`.
+- Revoke the key after provisioning if it is one-off.
+
+### Machine Appears but Cannot Reach Other Tailnet Nodes
+
+Cause: ACLs or tag policies block traffic.
+
+Fix:
+
+- Review the policy in `Access controls`.
+- Confirm the node has the expected tag, such as `tag:ai-worker`.
+- Temporarily broaden the ACL rule to verify policy is the blocker, then tighten it again.
+
+### Auth Key Rejected
+
+Cause: The auth key expired, was revoked, or was pasted incorrectly.
+
+Fix:
+
+- Generate a new auth key.
+- Copy it again as `<YOUR_TAILSCALE_AUTH_KEY>`.
+- Re-run `sudo tailscale up --auth-key='<YOUR_TAILSCALE_AUTH_KEY>'`.

@@ -1,130 +1,145 @@
 # HiveMQ Cloud Setup
 
-This guide creates a HiveMQ Cloud MQTT broker for AI Swarm. The MVP uses HiveMQ Cloud directly, so worker machines do not need public inbound networking.
+This guide creates the managed MQTT broker used by AI Swarm. Complete this file first, then continue with [cloudflare-deploy.md](./cloudflare-deploy.md).
 
-## Create an Account
+## Prerequisites
 
-1. Open https://www.hivemq.com/mqtt-cloud/.
-2. Create or sign in to a HiveMQ Cloud account.
-3. Select the **Serverless** free plan.
+- A HiveMQ Cloud account: https://console.hivemq.cloud/
+- A local shell with `openssl`
+- Optional MQTT CLI tools for verification:
+  - mosquitto clients install guide: https://mosquitto.org/download/
+  - Homebrew example: `brew install mosquitto`
+  - Ubuntu example: `sudo apt-get update && sudo apt-get install -y mosquitto-clients`
+- A secure place to store these placeholders after you create them:
+  - `mqtts://<YOUR_CLUSTER_ID>.hivemq.cloud:8883`
+  - `<YOUR_MQTT_USERNAME>`
+  - `<YOUR_MQTT_PASSWORD>`
 
-## Create a Cluster
+## Step-by-step
 
-1. In HiveMQ Cloud, create a new Serverless cluster.
-2. Select the preferred cloud region.
-3. Wait for the cluster status to become ready.
-4. Copy the cluster URL.
+1. Open the HiveMQ Cloud console.
 
-The URL format is:
+   URL: https://console.hivemq.cloud/
 
-```text
-{cluster-id}.s1.{region}.hivemq.cloud
-```
+2. Sign in, then create a Serverless cluster.
 
-Use port `8883` with TLS for MQTT clients.
+   Product guide: https://docs.hivemq.com/hivemq-cloud/quick-start-guide.html
 
-## Create Credentials
+3. In the cluster creation flow, choose a region and wait until the cluster status is ready.
 
-1. Open the cluster.
-2. Go to **Access Management**.
-3. Open **Credentials**.
-4. Create a new username and password for AI Swarm.
-5. Store the password securely. It will be used by both the Cloudflare bridge and worker daemon.
+4. Open the new cluster and copy the broker hostname.
 
-## Configure ACLs
+   Save it in this format:
 
-In **Access Management**, configure ACL permissions for the AI Swarm credential.
+   ```text
+   mqtts://<YOUR_CLUSTER_ID>.hivemq.cloud:8883
+   ```
 
-Allow subscribe and publish access to:
+5. Create a dedicated username and password for AI Swarm.
 
-```text
-tasks/#
-workers/#
-```
+   In the HiveMQ console, open `Manage Cluster` -> `Access Management` -> `Credentials`, then create:
 
-Required permissions:
+   ```text
+   Username: <YOUR_MQTT_USERNAME>
+   Password: <YOUR_MQTT_PASSWORD>
+   ```
 
-| Topic filter | Subscribe | Publish |
-|---|---:|---:|
-| `tasks/#` | Yes | Yes |
-| `workers/#` | Yes | Yes |
+6. Configure ACLs for that credential.
 
-## Test with mosquitto
+   In `Access Management`, allow both publish and subscribe on:
 
-Replace `YOUR-CLUSTER`, `YOUR-USERNAME`, and `YOUR-PASSWORD` with the HiveMQ values.
+   ```text
+   tasks/#
+   workers/#
+   ```
 
-Subscribe in one terminal:
+   Minimum ACL table:
 
-```bash
-mosquitto_sub \
-  -h YOUR-CLUSTER.s1.YOUR-REGION.hivemq.cloud \
-  -p 8883 \
-  -u YOUR-USERNAME \
-  -P YOUR-PASSWORD \
-  --cafile /etc/ssl/cert.pem \
-  -t 'tasks/#'
-```
+   | Topic filter | Subscribe | Publish |
+   |---|---:|---:|
+   | `tasks/#` | Yes | Yes |
+   | `workers/#` | Yes | Yes |
 
-Publish in another terminal:
+7. Export the values locally so you can reuse them in the next guides.
 
-```bash
-mosquitto_pub \
-  -h YOUR-CLUSTER.s1.YOUR-REGION.hivemq.cloud \
-  -p 8883 \
-  -u YOUR-USERNAME \
-  -P YOUR-PASSWORD \
-  --cafile /etc/ssl/cert.pem \
-  -t 'tasks/impl/test-repo' \
-  -m '{"task_id":"smoke-test","kind":"impl"}'
-```
+   ```bash
+   export AI_SWARM_MQTT_BROKER_URL='mqtts://<YOUR_CLUSTER_ID>.hivemq.cloud:8883'
+   export AI_SWARM_MQTT_USERNAME='<YOUR_MQTT_USERNAME>'
+   export AI_SWARM_MQTT_PASSWORD='<YOUR_MQTT_PASSWORD>'
+   ```
 
-The subscriber should receive the JSON message.
+8. If `mosquitto_sub` and `mosquitto_pub` are installed, run a broker smoke test.
 
-## Environment Variables
+   Terminal A:
 
-Export these variables before running the worker:
+   ```bash
+   mosquitto_sub \
+     -h <YOUR_CLUSTER_ID>.hivemq.cloud \
+     -p 8883 \
+     -u '<YOUR_MQTT_USERNAME>' \
+     -P '<YOUR_MQTT_PASSWORD>' \
+     --cafile /etc/ssl/cert.pem \
+     -t 'tasks/#'
+   ```
 
-```bash
-export AI_SWARM_MQTT_BROKER_URL='mqtts://YOUR-CLUSTER.s1.YOUR-REGION.hivemq.cloud:8883'
-export AI_SWARM_MQTT_USERNAME='YOUR-USERNAME'
-export AI_SWARM_MQTT_PASSWORD='YOUR-PASSWORD'
-```
+   Terminal B:
 
-Use equivalent Cloudflare Worker secrets for the bridge:
+   ```bash
+   mosquitto_pub \
+     -h <YOUR_CLUSTER_ID>.hivemq.cloud \
+     -p 8883 \
+     -u '<YOUR_MQTT_USERNAME>' \
+     -P '<YOUR_MQTT_PASSWORD>' \
+     --cafile /etc/ssl/cert.pem \
+     -t 'tasks/impl/smoke-test' \
+     -m '{"task_id":"smoke-test","type":"implementation"}'
+   ```
 
-- `MQTT_BROKER_URL`
-- `MQTT_USERNAME`
-- `MQTT_PASSWORD`
+## Verification
+
+1. Confirm the HiveMQ dashboard shows the cluster status as ready.
+
+2. Confirm the broker, username, and password are recorded only as placeholders in docs or shell history:
+
+   ```text
+   mqtts://<YOUR_CLUSTER_ID>.hivemq.cloud:8883
+   <YOUR_MQTT_USERNAME>
+   <YOUR_MQTT_PASSWORD>
+   ```
+
+3. If you ran the `mosquitto` smoke test, Terminal A should receive the JSON payload published from Terminal B.
+
+4. Continue to [cloudflare-deploy.md](./cloudflare-deploy.md) with the same three values.
 
 ## Troubleshooting
 
 ### Connection Refused
 
-Cause: Username or password is incorrect, disabled, or not assigned to the cluster.
+Cause: The username or password is wrong, disabled, or attached to a different cluster.
 
 Fix:
 
-- Recreate the credential in **Access Management → Credentials**.
-- Confirm the exact username and password are used by the worker and bridge.
-- Confirm the broker hostname and port are correct.
+- Recreate the credential in `Access Management` -> `Credentials`.
+- Re-export `AI_SWARM_MQTT_USERNAME` and `AI_SWARM_MQTT_PASSWORD`.
+- Re-run the `mosquitto_sub` and `mosquitto_pub` commands.
 
-### TLS Errors
+### TLS or Certificate Error
 
-Cause: The client cannot find a CA certificate bundle or is connecting without TLS.
+Cause: The client is not using TLS, is using the wrong port, or cannot find a CA bundle.
 
 Fix:
 
-- Use port `8883`.
-- Use `mqtts://` in application configuration.
-- For `mosquitto_sub` and `mosquitto_pub`, pass `--cafile /etc/ssl/cert.pem`.
-- On systems without `/etc/ssl/cert.pem`, use the platform CA bundle path.
+- Use port `8883` only.
+- Use `mqtts://<YOUR_CLUSTER_ID>.hivemq.cloud:8883` in application config.
+- Pass `--cafile /etc/ssl/cert.pem` to `mosquitto_*`.
+- If `/etc/ssl/cert.pem` does not exist on your OS, use the platform CA bundle path instead.
 
 ### ACL Denied
 
-Cause: The credential does not have topic permissions for the requested publish or subscribe.
+Cause: The credential can connect but does not have topic permissions.
 
 Fix:
 
-- Confirm ACLs include `tasks/#` with subscribe and publish.
-- Confirm ACLs include `workers/#` with subscribe and publish.
-- Retry the `mosquitto_sub` and `mosquitto_pub` test commands.
+- Confirm both publish and subscribe are enabled for `tasks/#`.
+- Confirm both publish and subscribe are enabled for `workers/#`.
+- Save ACL changes, then repeat the smoke test.

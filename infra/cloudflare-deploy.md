@@ -1,109 +1,169 @@
 # Cloudflare Worker Deployment
 
-This guide deploys the AI Swarm bridge as a Cloudflare Worker. The bridge receives GitHub webhook events and publishes tasks to MQTT.
+This guide deploys the `bridge/` service to Cloudflare Workers. It consumes GitHub webhooks and publishes tasks to HiveMQ. Complete this file after [hivemq-setup.md](./hivemq-setup.md), then continue with [github-webhook-setup.md](./github-webhook-setup.md).
 
 ## Prerequisites
 
-- Node.js 18+
-- pnpm
-- A Cloudflare account with Wrangler access
-- A HiveMQ Cloud broker URL, username, and password
-- A GitHub webhook secret
+- Complete [hivemq-setup.md](./hivemq-setup.md)
+- A Cloudflare account: https://dash.cloudflare.com/
+- Node.js and pnpm installed
+- Wrangler install/update guide: https://developers.cloudflare.com/workers/wrangler/install-and-update/
+- Cloudflare Workers CLI docs: https://developers.cloudflare.com/workers/wrangler/
+- The following values ready:
+  - `mqtts://<YOUR_CLUSTER_ID>.hivemq.cloud:8883`
+  - `<YOUR_MQTT_USERNAME>`
+  - `<YOUR_MQTT_PASSWORD>`
+  - `<YOUR_GITHUB_WEBHOOK_SECRET>`
 
-Install Wrangler globally:
+## Step-by-step
 
-```bash
-pnpm add -g wrangler
-```
+1. Open the repo root and install the bridge dependencies.
 
-Log in to Cloudflare:
+   ```bash
+   cd bridge
+   pnpm install
+   ```
 
-```bash
-wrangler login
-```
+2. Authenticate Wrangler with Cloudflare.
 
-## Configure Secrets
+   Login docs: https://developers.cloudflare.com/workers/wrangler/commands/#login
 
-Generate a webhook secret:
+   ```bash
+   pnpm exec wrangler login
+   ```
 
-```bash
-openssl rand -hex 32
-```
+3. Generate a webhook secret that will also be used in GitHub.
 
-From the `bridge/` directory, add the required secrets:
+   ```bash
+   openssl rand -hex 32
+   ```
 
-```bash
-cd bridge
-wrangler secret put GITHUB_WEBHOOK_SECRET
-wrangler secret put MQTT_BROKER_URL
-wrangler secret put MQTT_USERNAME
-wrangler secret put MQTT_PASSWORD
-```
+   Save the output as:
 
-Use the same `GITHUB_WEBHOOK_SECRET` value later when configuring the GitHub webhook.
+   ```text
+   <YOUR_GITHUB_WEBHOOK_SECRET>
+   ```
 
-Use the MQTT broker URL format expected by the bridge, for example:
+4. Set the Worker secret for the GitHub webhook signature.
 
-```text
-mqtts://YOUR-CLUSTER.s1.YOUR-REGION.hivemq.cloud:8883
-```
+   Secret docs: https://developers.cloudflare.com/workers/configuration/secrets/
 
-## Deploy
+   ```bash
+   cd bridge
+   pnpm exec wrangler secret put GITHUB_WEBHOOK_SECRET
+   ```
 
-Deploy the Worker from the `bridge/` directory:
+   When prompted, paste:
 
-```bash
-pnpm deploy
-```
+   ```text
+   <YOUR_GITHUB_WEBHOOK_SECRET>
+   ```
 
-List deployments and copy the Worker URL:
+5. Set the MQTT broker URL secret.
 
-```bash
-wrangler deployments list
-```
+   ```bash
+   cd bridge
+   pnpm exec wrangler secret put MQTT_BROKER_URL
+   ```
 
-The deployed URL should look like:
+   When prompted, paste:
 
-```text
-https://ai-swarm-bridge.YOUR-SUBDOMAIN.workers.dev
-```
+   ```text
+   mqtts://<YOUR_CLUSTER_ID>.hivemq.cloud:8883
+   ```
 
-## GitHub Webhook Setup
+6. Set the MQTT username secret.
 
-In the target GitHub repository:
+   ```bash
+   cd bridge
+   pnpm exec wrangler secret put MQTT_USERNAME
+   ```
 
-1. Open **Settings**.
-2. Open **Webhooks**.
-3. Select **Add webhook**.
-4. Set **Payload URL** to the Cloudflare Worker URL.
-5. Set **Content type** to `application/json`.
-6. Set **Secret** to the same value stored in `GITHUB_WEBHOOK_SECRET`.
-7. Under **Which events would you like to trigger this webhook?**, select **Let me select individual events**.
-8. Enable **Issues** and **Pull requests**.
-9. Keep **Active** checked.
-10. Select **Add webhook**.
+   When prompted, paste:
 
-See [github-webhook-setup.md](github-webhook-setup.md) for detailed webhook testing and redelivery steps.
+   ```text
+   <YOUR_MQTT_USERNAME>
+   ```
+
+7. Set the MQTT password secret.
+
+   ```bash
+   cd bridge
+   pnpm exec wrangler secret put MQTT_PASSWORD
+   ```
+
+   When prompted, paste:
+
+   ```text
+   <YOUR_MQTT_PASSWORD>
+   ```
+
+8. Deploy the Worker.
+
+   ```bash
+   cd bridge
+   pnpm deploy
+   ```
+
+9. List deployments and copy the generated Worker URL.
+
+   ```bash
+   cd bridge
+   pnpm exec wrangler deployments list
+   ```
+
+   Record it as:
+
+   ```text
+   https://<YOUR_WORKER_SUBDOMAIN>.workers.dev
+   ```
+
+## Verification
+
+1. Confirm `pnpm deploy` finishes successfully and prints a deployed Worker name.
+
+2. Confirm `pnpm exec wrangler deployments list` shows the latest deployment.
+
+3. Save the Worker URL as:
+
+   ```text
+   https://<YOUR_WORKER_SUBDOMAIN>.workers.dev
+   ```
+
+4. Continue to [github-webhook-setup.md](./github-webhook-setup.md) with:
+
+   - `https://<YOUR_WORKER_SUBDOMAIN>.workers.dev`
+   - `<YOUR_GITHUB_WEBHOOK_SECRET>`
 
 ## Troubleshooting
 
-### 401 Signature Mismatch
+### `wrangler login` Fails
 
-Cause: GitHub and Cloudflare Worker are using different webhook secret values.
-
-Fix:
-
-- Re-run `wrangler secret put GITHUB_WEBHOOK_SECRET` in `bridge/`.
-- Paste the exact same secret into the GitHub webhook **Secret** field.
-- Redeliver a recent GitHub webhook delivery.
-
-### MQTT Publish Failure
-
-Cause: Broker URL, credentials, or ACLs are incorrect.
+Cause: The browser login flow did not complete or the wrong Cloudflare account was selected.
 
 Fix:
 
-- Confirm `MQTT_BROKER_URL` uses `mqtts://` and port `8883`.
-- Confirm the hostname matches the HiveMQ cluster URL.
-- Confirm `MQTT_USERNAME` and `MQTT_PASSWORD` match HiveMQ Access Management credentials.
-- Confirm HiveMQ ACLs allow publish access to `tasks/#` and `workers/#`.
+- Re-run `pnpm exec wrangler login`.
+- Confirm the browser session lands in the target Cloudflare account.
+- Retry `pnpm exec wrangler deployments list` before deploying again.
+
+### Secret Missing at Deploy Time
+
+Cause: One or more required secrets were never created or were created in a different account.
+
+Fix:
+
+- Re-run `pnpm exec wrangler secret put GITHUB_WEBHOOK_SECRET`.
+- Re-run `pnpm exec wrangler secret put MQTT_BROKER_URL`.
+- Re-run `pnpm exec wrangler secret put MQTT_USERNAME`.
+- Re-run `pnpm exec wrangler secret put MQTT_PASSWORD`.
+
+### MQTT Publish Failure After Deploy
+
+Cause: Cloudflare received the webhook, but the Worker cannot authenticate to HiveMQ.
+
+Fix:
+
+- Confirm `MQTT_BROKER_URL` is exactly `mqtts://<YOUR_CLUSTER_ID>.hivemq.cloud:8883`.
+- Confirm `MQTT_USERNAME` and `MQTT_PASSWORD` match the HiveMQ credential.
+- Re-check the ACLs from [hivemq-setup.md](./hivemq-setup.md).
